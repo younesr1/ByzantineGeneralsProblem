@@ -1,7 +1,7 @@
 #include <cmsis_os2.h>
 #include <stdlib.h>
 #include "general.h"
-
+//#if false
 typedef struct {
 	uint8_t n;
 	bool *loyal;
@@ -15,7 +15,7 @@ bool loyal1[] = { true, false, true, true };
 bool loyal2[] = { true, false, true, true };
 bool loyal3[] = { true, false, true, true, false, true, true };
 
-#define N_TEST 1
+#define N_TEST 1 // was 4
 
 test_t tests[N_TEST] = {
 	{ sizeof(loyal0)/sizeof(loyal0[0]), loyal0, 1, 'R', 0 }
@@ -68,3 +68,31 @@ int main(void) {
 	
 	for( ; ; ) ;
 }
+
+//#endif
+
+
+
+
+
+
+
+#if false
+osMessageQueueId_t q1_id;
+
+void set(void *unused) {
+	int a = 420;
+	 c_assert(osMessageQueuePut(q1_id, &a, 0, osWaitForever) == osOK);
+	//osDelay(osKernelGetTickFreq())
+}
+
+void get(void *unused) {
+	int out;
+	c_assert(osMessageQueueGet(q1_id, &out, NULL, osWaitForever) == osOK);
+	printf("%d\n", out);
+}
+
+
+int main() {
+}
+#endif
