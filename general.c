@@ -3,22 +3,26 @@
 
 // add any #includes here
 #include "stdlib.h"
+#include "string.h"
 
 // add any #defines here
 #define BUFFER_SIZE 20 // TODO look at post 228 on piazza for how to figure out this number
 #define DEFAULT_PRIORITY 0
 // add global variables here
 typedef struct msg_t {
+	// "{Sender1, Sender2, \0}" no need for sender 3rd bc its always m_commander
+	char path[3];
 	char cmd;
-	int8_t sender1, sender2, sender3;
 } msg_t;
 uint8_t m_reporter = 0;
 uint8_t m_commander = 0;
 uint8_t m_nGeneral = 0; // at most 7
 uint8_t m_nTraitors = 0; // at most 2
-bool *m_loyal = NULL; // heap alloc
+bool *m_loyal = NULL; // heap allocation
 // array of size nGeneneral
 osMessageQueueId_t *m_buffers = NULL; // heap allocation
+// add function declarations here
+void om(uint8_t temp_commander, char cmd, uint8_t recursion_lvl);
 
 
 /** Record parameters and set up any OS and other resources
@@ -77,9 +81,6 @@ void cleanup(void) {
 void broadcast(char command, uint8_t commander) {
 	m_commander = commander;
 	msg_t msg;
-	msg.sender1 = commander;
-	msg.sender2 = -1;
-	msg.sender3 = -1;
 	const bool sender_is_loyal = m_loyal[commander];
 	const char loyal_cmd = command;
 	char traitor_cmd;
@@ -91,44 +92,9 @@ void broadcast(char command, uint8_t commander) {
 		}
 	}
 	// TODO: "It should wait for the generals to finish before returning."	
-	while(true);
+	
 }
 
-
-/** Intermediate function used in general()
-* temp_commander: id of the commander for the purpose of the function. Not necessarily m_commander
-* lieutenants: array of lieutenant id's not including the general's
-* recursion_level: number of traitors
-	*/
-void om(uint8_t temp_commander, uint8_t *lieutenants, uint8_t nLieutenants, uint8_t recursion_level) {
-	if(0 == recursion_level) {
-		
-	}
-	else if (recursion_level > 0) {
-		// step 1
-		for(uint8_t i = 0; i < nLieutenants; i++) {
-			c_assert(osMessageQueuePut(m_buffers[lieutenants[i]], SOME_MSG, 0, osWaitForever) == osOK);
-		}
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		for(uint8_t i = 0; i < m_nGeneral; i++) {
-			if(i != m_commander) {
-				uint8_t ignore = temp_commander;
-				om(m-1, i, cmd, &ignore);
-			}
-		}
-	}
-	else {
-		c_assert(false);// SHOULDNT GET HERE
-	}
-}
 
 /** Generals are created before each test and deleted after each
   * test.  The function should wait for a value from broadcast()
@@ -144,26 +110,40 @@ void general(void *idPtr) {
 	msg_t input;
 	c_assert(osMessageQueueGet(m_buffers[id], &input, DEFAULT_PRIORITY,osWaitForever) == osOK);
 	// recursive OM
-	om(m_nTraitors, m_commander, something, NULL);
-#if false
-	########################################### OM(2) ###############################################
-	// write to everyone's buffer except yours and the commander's
-	msg_t output;
-	output.sender1 = input.sender1;
-	output.sender2 = id;
-	output.sender3 = -1;
-	output.cmd = m_loyal[id] ? input.cmd : (id%2 ? ATTACK : RETREAT);
-	for(uint8_t i = 0; i < m_nGeneral; i++) {
-		if (i!= id && i != m_commander) {
-			c_assert(osMessageQueuePut(m_buffers[i], &output, DEFAULT_PRIORITY, osWaitForever) == osOK);
+	// for(i : v) {om(who, input.cmd, m_nTraitors);} // TODO FIGURE OUT HOW TO CALL OM
+}
+
+
+void om(uint8_t temp_commander, char cmd, uint8_t recursion_lvl) {
+	if(recursion_lvl == 0) {
+		msg_t msg;
+		msg.cmd = m_loyal[temp_commander] ? cmd : (temp_commander%2 ? ATTACK : RETREAT);
+		char id = '0' + temp_commander;
+		strcat(msg.path, &id);
+		for(uint8_t i = 0; i < m_nGeneral; i++) {
+			// send to everyone but the temp commander and real commander since latter isnt involved in OM()
+			if(i != temp_commander && i != m_commander) {
+				c_assert(osMessageQueuePut(m_buffers[i], &msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
+			}
 		}
 	}
-##################################################################################################
-	// read what everone else told you:
-	msg_t input2;
-	for(uint8_t i = 0; i < (m_nGeneral-2); i++) {
-		c_assert(osMessageQueueGet(m_buffers[id], &input2, DEFAULT_PRIORITY, osWaitForever) == osOK);
+	else {
+		msg_t msg;
+		msg.cmd = m_loyal[temp_commander] ? cmd : (temp_commander%2 ? ATTACK : RETREAT);
+		char id = '0' + temp_commander;
+		strcat(msg.path, &id);
+		for(uint8_t i = 0; i < m_nGeneral; i++) {
+			// send to everyone but the temp commander and real commander since latter isnt involved in OM()
+			if(i != temp_commander && i != m_commander) {
+				c_assert(osMessageQueuePut(m_buffers[i], &msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
+			}
+		}
+		for(uint8_t i = 0; i < m_nGeneral; i++) {
+			if(i != m_commander && i != temp_commander) {
+				char reported_cmd = m_loyal[i] ? cmd : (i%2 ? ATTACK : RETREAT);
+				om(i, reported_cmd, recursion_lvl-1);
+			}
+		}
 	}
-#endif
-	// TODO: call recursive function called om()
+	
 }
