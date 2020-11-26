@@ -18,9 +18,9 @@ bool loyal3[] = { true, false, true, true, false, true, true };
 #define N_TEST 1 // was 4
 
 test_t tests[N_TEST] = {
-	{ sizeof(loyal0)/sizeof(loyal0[0]), loyal0, 1, 'R', 0 }
-	//{ sizeof(loyal1)/sizeof(loyal1[0]), loyal1, 2, 'R', 0 },
-	//{ sizeof(loyal2)/sizeof(loyal2[0]), loyal2, 2, 'A', 1 },
+	//{ sizeof(loyal0)/sizeof(loyal0[0]), loyal0, 1, 'R', 0 }//,
+	{ sizeof(loyal1)/sizeof(loyal1[0]), loyal1, 2, 'R', 0 }//,
+	//{ sizeof(loyal2)/sizeof(loyal2[0]), loyal2, 2, 'A', 1 }//,
 	//{ sizeof(loyal3)/sizeof(loyal3[0]), loyal3, 6, 'R', 0 }
 };
 
@@ -78,21 +78,26 @@ int main(void) {
 
 
 #if false
-osMessageQueueId_t q1_id;
+osMutexId_t mutex;
 
-void set(void *unused) {
-	int a = 420;
-	 c_assert(osMessageQueuePut(q1_id, &a, 0, osWaitForever) == osOK);
-	//osDelay(osKernelGetTickFreq())
-}
-
-void get(void *unused) {
-	int out;
-	c_assert(osMessageQueueGet(q1_id, &out, NULL, osWaitForever) == osOK);
-	printf("%d\n", out);
+void hello(void *unused) {
+	osMutexAcquire(mutex, osWaitForever);
+	printf("hello\n");
+	osMutexRelease(mutex);
+	while(true) {osDelay(100);}
 }
 
 
 int main() {
+	osKernelInitialize();
+	mutex = osMutexNew(NULL);
+  osThreadNew(hello, NULL, NULL);
+	osThreadNew(hello, NULL, NULL);
+	osThreadNew(hello, NULL, NULL);
+	osThreadNew(hello, NULL, NULL);
+	osThreadNew(hello, NULL, NULL);
+	osKernelStart();
+	
+	for( ; ; ) ;
 }
 #endif

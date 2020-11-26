@@ -5,22 +5,32 @@
 #include "stdlib.h"
 #include "string.h"
 
+// TODO DO NOT PUSH!!!!!!!!!!!
+#define DEBUG
+#ifdef DEBUG
+osMutexId_t debug_mutex;
+#endif
+
 // add any #defines here
-#define BUFFER_SIZE 20 // TODO look at post 228 on piazza for how to figure out this number
+#define BUFFER_SIZE0 1 // TODO ADAPT THIS FOR CASE N
+#define BUFFER_SIZE1 2 // TODO ADAPT THIS FOR CASE N
 #define DEFAULT_PRIORITY 0
 // add global variables here
-typedef struct msg_t {
-	// "{Sender1, Sender2, \0}" no need for sender 3rd bc its always m_commander
-	char path[3];
-	char cmd;
-} msg_t;
+typedef struct msg0_t {
+	char msg[4]; 
+} msg0_t;
+typedef struct msg1_t {
+	char msg[6];
+} msg1_t;
 uint8_t m_reporter = 0;
 uint8_t m_commander = 0;
 uint8_t m_nGeneral = 0; // at most 7
 uint8_t m_nTraitors = 0; // at most 2
 bool *m_loyal = NULL; // heap allocation
 // array of size nGeneneral
-osMessageQueueId_t *m_buffers = NULL; // heap allocation
+osMessageQueueId_t *m_buffers0 = NULL; // heap allocation
+osMessageQueueId_t *m_buffers1 = NULL; // heap allocation
+osSemaphoreId_t m_firstRelease;
 // add function declarations here
 void om(uint8_t temp_commander, char cmd, uint8_t recursion_lvl);
 
@@ -34,6 +44,7 @@ void om(uint8_t temp_commander, char cmd, uint8_t recursion_lvl);
   */
 bool setup(uint8_t nGeneral, bool loyal[], uint8_t reporter) {
 	m_reporter = reporter;
+	m_nGeneral = nGeneral;
 	// store loyalty array
 	m_loyal = malloc(nGeneral*sizeof(bool));
 	if(!c_assert(m_loyal)) return false;
@@ -45,12 +56,19 @@ bool setup(uint8_t nGeneral, bool loyal[], uint8_t reporter) {
 	if(!c_assert(nGeneral > 3*m_nTraitors)) return false;
 	// declare buffers for ALL generals. Commander buffer won't be used
 	// This simplifies logic in broadcast()
-	m_buffers = malloc(nGeneral * sizeof(osMessageQueueId_t));
-	if(!c_assert(m_buffers)) return false;
+	m_buffers0 = malloc(nGeneral * sizeof(osMessageQueueId_t));
+	m_buffers1 = malloc(nGeneral * sizeof(osMessageQueueId_t));
+	if(!c_assert(m_buffers1 && m_buffers1)) return false;
 	for(uint8_t i = 0; i < nGeneral; i++) {
-		m_buffers[i] = osMessageQueueNew(BUFFER_SIZE, sizeof(msg_t), NULL);
-		if(!c_assert(m_buffers[i])) return false;
-	}		
+		m_buffers0[i] = osMessageQueueNew(BUFFER_SIZE0, sizeof(msg0_t), NULL);
+		m_buffers1[i] = osMessageQueueNew(BUFFER_SIZE1, sizeof(msg1_t), NULL);
+		if(!c_assert(m_buffers0[i] && m_buffers1[i])) return false;
+	}
+	m_firstRelease = osSemaphoreNew(nGeneral, 0, NULL);
+	if(!c_assert(m_firstRelease)) return false;
+#ifdef DEBUG
+	debug_mutex = osMutexNew(NULL);
+#endif
 	return true;
 }
 
@@ -64,11 +82,16 @@ void cleanup(void) {
 	m_loyal = NULL;
 	// cleanup buffer array 
 	for(uint8_t i = 0; i < m_nGeneral; i++) {
-		c_assert(osMessageQueueDelete(m_buffers[i]) == osOK);
+		c_assert(osMessageQueueDelete(m_buffers0[i]) == osOK);
+		c_assert(osMessageQueueDelete(m_buffers1[i]) == osOK);
 	}
-	free(m_buffers);
-	m_buffers = NULL;
+	c_assert(osSemaphoreDelete(m_firstRelease) == osOK);
+	free(m_buffers0);
+	free(m_buffers1);
+	m_buffers0 = NULL;
+	m_buffers1 = NULL;
 	// TODO: RESET GLOBALS
+	m_nTraitors = 0;
 }
 
 /** This function performs the initial broadcast to n-1 generals.
@@ -78,21 +101,23 @@ void cleanup(void) {
   * command: either 'A' or 'R'
   * sender: general sending the command to other n-1 generals
   */
-void broadcast(char command, uint8_t commander) {
+void broadcast(char command, uint8_t commander) { // broadcast is at the 0th level
 	m_commander = commander;
-	msg_t msg;
-	const bool sender_is_loyal = m_loyal[commander];
-	const char loyal_cmd = command;
-	char traitor_cmd;
 	for(uint8_t i = 0; i < m_nGeneral; i++) {
-		traitor_cmd = (i%2) == 0 ? ATTACK : RETREAT;
-		msg.cmd = sender_is_loyal ? loyal_cmd : traitor_cmd;
+		msg0_t msg;
+		msg.msg[0] = '0' + commander;
+		msg.msg[1] = ':';
+		msg.msg[2] = m_loyal[commander] ? command : (i%2 ? ATTACK : RETREAT);
+		msg.msg[3] = '\0';
 		if(commander != i) {
-			c_assert(osMessageQueuePut(m_buffers[i], &msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
+			c_assert(osMessageQueuePut(m_buffers0[i], &msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
 		}
 	}
+	for(uint8_t i = 0; i < m_nGeneral; i++) {
+		c_assert(osSemaphoreRelease(m_firstRelease) == osOK);
+	}
 	// TODO: "It should wait for the generals to finish before returning."	
-	
+	while(true) {osDelay(100);}
 }
 
 
@@ -104,16 +129,22 @@ void broadcast(char command, uint8_t commander) {
   * idPtr: pointer to general's id number which is in [0,n-1]
   */
 void general(void *idPtr) {
+	osSemaphoreAcquire(m_firstRelease, osWaitForever);
 	const uint8_t id = *(uint8_t *)idPtr;
-	if (id == m_commander) {return;} // TODO: COMMANDER ISNT INVOLVED IN THIS RIGHT?
+	if (id == m_commander) { return; }//while(true) {osDelay(100);} } // TODO: COMMANDER ISNT INVOLVED IN THIS RIGHT?
 	// read from your buffer:
-	msg_t input;
-	c_assert(osMessageQueueGet(m_buffers[id], &input, DEFAULT_PRIORITY,osWaitForever) == osOK);
+	msg0_t input;
+	c_assert(osMessageQueueGet(m_buffers0[id], &input, DEFAULT_PRIORITY,osWaitForever) == osOK);
+#ifdef DEBUG
+	osMutexAcquire(debug_mutex, osWaitForever);
+	printf("%s\n", input.msg);
+	osMutexRelease(debug_mutex);
+#endif
+	while(true) {osDelay(100);}
 	// recursive OM
-	// for(i : v) {om(who, input.cmd, m_nTraitors);} // TODO FIGURE OUT HOW TO CALL OM
 }
 
-
+#if false
 void om(uint8_t temp_commander, char cmd, uint8_t recursion_lvl) {
 	if(recursion_lvl == 0) {
 		msg_t msg;
@@ -147,3 +178,4 @@ void om(uint8_t temp_commander, char cmd, uint8_t recursion_lvl) {
 	}
 	
 }
+#endif
