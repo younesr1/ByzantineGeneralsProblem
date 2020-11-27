@@ -42,19 +42,25 @@ bool general_in_path(uint8_t id, char *path, uint8_t length);
   * return true if setup successful and n > 3*m, false otherwise
   */
 bool setup(uint8_t nGeneral, bool loyal[], uint8_t reporter) {
+	// Before we malloc or change any variables check the condition so we dont have to call cleanup
+	for(uint8_t i = 0; i < nGeneral; i++) {
+		if(!loyal[i]) m_nTraitors++;
+	}
+	if(!c_assert(nGeneral > 3*m_nTraitors)) {
+		m_nTraitors = 0;
+		return false;
+	}
+	// ANY OTHER REASON FOR FAILURE (e.g malloc) MIGHT MESS UP FUTURE TESTS
 	m_reporter = reporter;
 	m_nGeneral = nGeneral;
 	// store loyalty array
 	m_loyal = malloc(nGeneral*sizeof(bool));
 	if(!c_assert(m_loyal)) return false;
-	// count number of traitors
+	// copy loyalty array
 	for(uint8_t i = 0; i < nGeneral; i++) {
-		if(!loyal[i]) m_nTraitors++;
 		m_loyal[i] = loyal[i];
 	}
-	if(!c_assert(nGeneral > 3*m_nTraitors)) return false;
 	// declare buffers for ALL generals. Commander buffer won't be used
-	// This simplifies logic in broadcast()
 	m_buffers0 = malloc(nGeneral * sizeof(osMessageQueueId_t));
 	m_buffers1 = malloc(nGeneral * sizeof(osMessageQueueId_t));
 	if(!c_assert(m_buffers1 && m_buffers1)) return false;
@@ -91,8 +97,13 @@ void cleanup(void) {
 	free(m_buffers1);
 	m_buffers0 = NULL;
 	m_buffers1 = NULL;
-	// TODO: RESET GLOBALS
+	m_reporter = 0;
+	m_commander = 0;
 	m_nTraitors = 0;
+	m_nGeneral = 0;
+#ifdef DEBUG
+	c_assert(osMutexDelete(debug_mutex) == osOK);
+#endif
 }
 
 /** This function performs the initial broadcast to n-1 generals.

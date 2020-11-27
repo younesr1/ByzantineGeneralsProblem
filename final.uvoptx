@@ -143,27 +143,27 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>id</ItemText>
+          <ItemText>m_reporter</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>m_reporter</ItemText>
+          <ItemText>m_commander</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>m_commander</ItemText>
+          <ItemText>m_nGeneral</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>m_nGeneral</ItemText>
+          <ItemText>m_nTraitors</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>input</ItemText>
+          <ItemText>m_loyal</ItemText>
         </Ww>
       </WatchWindow1>
       <MemoryWindow1>
