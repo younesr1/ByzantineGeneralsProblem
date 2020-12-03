@@ -4,7 +4,6 @@
 // add any #includes here
 #include "stdlib.h"
 #include "string.h"
-
 //#define DEBUG
 #ifdef DEBUG
 osMutexId_t debug_mutex;
@@ -13,14 +12,12 @@ osMutexId_t debug_mutex;
 // add any #defines here
 #define BUFFER_SIZE0 1 // TODO ADAPT THIS FOR CASE N
 #define BUFFER_SIZE1 2 // TODO ADAPT THIS FOR CASE N
+#define BUFFER_SIZE2 2 // TODO ADAPT THIS FOR CASE N SOMETHING SOMETHING SOMETHING UGGGHHH IM GONNA WATCH THE VIDEO AGAIN
 #define DEFAULT_PRIORITY 0
+#define FOUR 4
+#define SIX 6
+#define EIGHT 8
 // add global variables here
-typedef struct msg0_t {
-	char msg[4]; 
-} msg0_t;
-typedef struct msg1_t {
-	char msg[6];
-} msg1_t;
 uint8_t m_reporter = 0;
 uint8_t m_commander = 0;
 uint8_t m_nGeneral = 0; // at most 7
@@ -29,6 +26,7 @@ bool *m_loyal = NULL; // heap allocation
 // array of size nGeneneral
 osMessageQueueId_t *m_buffers0 = NULL; // heap allocation
 osMessageQueueId_t *m_buffers1 = NULL; // heap allocation
+osMessageQueueId_t *m_buffers2 = NULL; // heap allocation
 osSemaphoreId_t m_enter, m_exit;
 // add function declarations here
 void om(uint8_t temp_commander, char *path, uint8_t path_length, uint8_t recursion_lvl);
@@ -63,10 +61,12 @@ bool setup(uint8_t nGeneral, bool loyal[], uint8_t reporter) {
 	// declare buffers for ALL generals. Commander buffer won't be used
 	m_buffers0 = malloc(nGeneral * sizeof(osMessageQueueId_t));
 	m_buffers1 = malloc(nGeneral * sizeof(osMessageQueueId_t));
-	if(!c_assert(m_buffers1 && m_buffers1)) return false;
+	m_buffers2 = malloc(nGeneral * sizeof(osMessageQueueId_t));
+	if(!c_assert(m_buffers1 && m_buffers1 && m_buffers2)) return false;
 	for(uint8_t i = 0; i < nGeneral; i++) {
-		m_buffers0[i] = osMessageQueueNew(BUFFER_SIZE0, sizeof(msg0_t), NULL);
-		m_buffers1[i] = osMessageQueueNew(BUFFER_SIZE1, sizeof(msg1_t), NULL);
+		m_buffers0[i] = osMessageQueueNew(BUFFER_SIZE0, FOUR, NULL);
+		m_buffers1[i] = osMessageQueueNew(BUFFER_SIZE1, SIX, NULL);
+		m_buffers2[i] = osMessageQueueNew(BUFFER_SIZE2, EIGHT, NULL);
 		if(!c_assert(m_buffers0[i] && m_buffers1[i])) return false;
 	}
 	m_enter = osSemaphoreNew(nGeneral, 0, NULL);
@@ -116,13 +116,13 @@ void cleanup(void) {
 void broadcast(char command, uint8_t commander) { // broadcast is at the 0th level
 	m_commander = commander;
 	for(uint8_t i = 0; i < m_nGeneral; i++) {
-		msg0_t msg;
-		msg.msg[0] = '0' + commander;
-		msg.msg[1] = ':';
-		msg.msg[2] = m_loyal[commander] ? command : (i%2 ? ATTACK : RETREAT);
-		msg.msg[3] = '\0';
+		char msg[FOUR];
+		msg[0] = '0' + commander;
+		msg[1] = ':';
+		msg[2] = m_loyal[commander] ? command : (i%2 ? ATTACK : RETREAT);
+		msg[3] = '\0';
 		if(commander != i) {
-			c_assert(osMessageQueuePut(m_buffers0[i], &msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
+			c_assert(osMessageQueuePut(m_buffers0[i], msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
 		}
 	}
 	for(uint8_t i = 0; i < m_nGeneral; i++) {
@@ -146,15 +146,15 @@ void general(void *idPtr) {
 	const uint8_t id = *(uint8_t *)idPtr;
 	if (id == m_commander) return;
 	// read from your buffer:
-	msg0_t input;
-	c_assert(osMessageQueueGet(m_buffers0[id], &input, DEFAULT_PRIORITY,osWaitForever) == osOK);
+	char input[FOUR];
+	c_assert(osMessageQueueGet(m_buffers0[id], input, DEFAULT_PRIORITY,osWaitForever) == osOK);
 #ifdef DEBUG
 	osMutexAcquire(debug_mutex, osWaitForever);
 	printf("%s\n", input.msg);
 	osMutexRelease(debug_mutex);
 #endif
 	// recursive OM
-	om(id, input.msg, sizeof(input.msg)/sizeof(input.msg[0]), m_nTraitors);
+	om(id, input, FOUR, m_nTraitors);
 	c_assert(osSemaphoreRelease(m_exit) == osOK);
 }
 
@@ -165,23 +165,26 @@ void om(uint8_t temp_commander, char *path, uint8_t path_length, uint8_t recursi
 		}
 	} 
 	else if(recursion_lvl == 1) {
-		c_assert(path_length == 4); // TODO: DOES THIS SCALE BEYOND CASE 1??? if it doesnt, put a for loop after msg.msg[1] = ':';
+		c_assert(path_length == FOUR || path_length == SIX);
 		for(uint8_t i = 0; i < m_nGeneral; i++) {
 			if(!general_in_path(i, path, path_length) && i!= temp_commander) {
-				msg1_t msg;
-				msg.msg[0] = '0' + temp_commander;
-				msg.msg[1] = ':';
-				msg.msg[2] = path[0];
-				msg.msg[3] = path[1];
-				msg.msg[4] = m_loyal[temp_commander] ? path[2] : (temp_commander%2 ? ATTACK : RETREAT);
-				msg.msg[5] = path[3];
-				c_assert(osMessageQueuePut(m_buffers1[i], &msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
+				char msg[path_length+2];
+				msg[0] = '0' + temp_commander;
+				msg[1] = ':';
+				for(uint8_t i = 0; i < path_length; i++){
+					if(i == (path_length-2)) {
+						msg[i+2] = m_loyal[temp_commander] ? path[2] : (temp_commander%2 ? ATTACK : RETREAT);
+					} else {
+						msg[i+2] = path[i];
+					}
+				}
+				c_assert(osMessageQueuePut(path_length == FOUR ? m_buffers1[i] : m_buffers2[i], msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
 			}
 		}
 		for(uint8_t i = 0; i < (m_nGeneral-1-recursion_lvl); i++) {
-			msg1_t input;
-			c_assert(osMessageQueueGet(m_buffers1[temp_commander], &input, DEFAULT_PRIORITY, osWaitForever) == osOK);
-			om(temp_commander, input.msg, sizeof(input.msg)/sizeof(input.msg[0]), recursion_lvl-1);
+			char input[path_length+2];
+			c_assert(osMessageQueueGet(path_length == FOUR ? m_buffers1[temp_commander] : m_buffers2[temp_commander], input, DEFAULT_PRIORITY, osWaitForever) == osOK);
+			om(temp_commander, input, path_length+2, recursion_lvl-1);
 		}
 	}
 	else if(recursion_lvl == 2) {
@@ -198,26 +201,3 @@ bool general_in_path(uint8_t id, char *path, uint8_t length) {
 	}
 	return false;
 }
-
-#if false
-void om(uint8_t temp_commander, char *path, uint8_t recursion_lvl) {
-	if(recursion_lvl == 0) {
-		if(temp_commander == m_reporter) {
-			printf("%s ", path);
-		}
-	} else if(recursion_lvl > 0) {
-		msg1_t msg;
-		msg.msg[0] = '0' + temp_commander;
-		msg.msg[1] = ':';
-		msg.msg[2] = '0' + m_commander;
-		msg.msg[3] = ':';
-		msg.msg[4] = m_loyal[temp_commander] ? cmd : (temp_commander%2 ? ATTACK : RETREAT);
-		msg.msg[5] = '\0';
-		for(uint8_t i = 0; i < m_nGeneral; i++) {
-			if (i != m_commander && i != temp_commander) {
-				c_assert(osMessageQueuePut(m_buffers1, &msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
-			}
-		}
-	}
-}
-#endif
