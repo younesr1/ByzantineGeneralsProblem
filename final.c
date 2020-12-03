@@ -1,7 +1,7 @@
 #include <cmsis_os2.h>
 #include <stdlib.h>
 #include "general.h"
-//#if false
+
 typedef struct {
 	uint8_t n;
 	bool *loyal;
@@ -68,41 +68,3 @@ int main(void) {
 	
 	for( ; ; ) ;
 }
-
-//#endif
-
-
-
-
-
-
-
-#if false
-osMutexId_t mutex;
-
-osMessageQueueId_t q;
-void sender(void*unused) {
-	char msg[4];
-	msg[0] = 'h';
-	msg[1] = 'e';
-	msg[2] = 'y';
-	msg[3] = '\0';
-	osMessageQueuePut(q, msg, 0, osWaitForever);
-}
-
-void getter(void*unused) {
-	char input[4];
-	osMessageQueueGet(q,input, 0, osWaitForever);
-	printf("%s", input);
-}
-int main() {
-	osKernelInitialize();
-	mutex = osMutexNew(NULL);
-	q = osMessageQueueNew(10, 4, NULL);
-  osThreadNew(sender, NULL, NULL);
-	osThreadNew(getter, NULL, NULL);
-	osKernelStart();
-	
-	for( ; ; ) ;
-}
-#endif

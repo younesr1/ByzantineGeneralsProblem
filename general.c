@@ -6,9 +6,9 @@
 #include "string.h"
 
 // add any #defines here
-#define BUFFER_SIZE0 1 // TODO ADAPT THIS FOR CASE N
-#define BUFFER_SIZE1 5 // TODO ADAPT THIS FOR CASE N
-#define BUFFER_SIZE2 20 // TODO ADAPT THIS FOR CASE N
+#define BUFFER_SIZE0 1 // WORST CASE
+#define BUFFER_SIZE1 5 // WORST CASE
+#define BUFFER_SIZE2 20 // WORST CASE
 #define DEFAULT_PRIORITY 0
 #define FOUR 4
 #define SIX 6
