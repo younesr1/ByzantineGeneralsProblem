@@ -83,13 +83,16 @@ void cleanup(void) {
 	for(uint8_t i = 0; i < m_nGeneral; i++) {
 		c_assert(osMessageQueueDelete(m_buffers0[i]) == osOK);
 		c_assert(osMessageQueueDelete(m_buffers1[i]) == osOK);
+		c_assert(osMessageQueueDelete(m_buffers2[i]) == osOK);
 	}
 	c_assert(osSemaphoreDelete(m_enter) == osOK);
 	c_assert(osSemaphoreDelete(m_exit) == osOK);
 	free(m_buffers0);
 	free(m_buffers1);
+	free(m_buffers2);
 	m_buffers0 = NULL;
 	m_buffers1 = NULL;
+	m_buffers2 = NULL;
 	m_reporter = 0;
 	m_commander = 0;
 	m_nTraitors = 0;
