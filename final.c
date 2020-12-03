@@ -15,13 +15,13 @@ bool loyal1[] = { true, false, true, true };
 bool loyal2[] = { true, false, true, true };
 bool loyal3[] = { true, false, true, true, false, true, true };
 
-#define N_TEST 3 // was 4
+#define N_TEST 1 // was 4
 
 test_t tests[N_TEST] = {
-	{ sizeof(loyal0)/sizeof(loyal0[0]), loyal0, 1, 'R', 0 },
-	{ sizeof(loyal1)/sizeof(loyal1[0]), loyal1, 2, 'R', 0 },
-	{ sizeof(loyal2)/sizeof(loyal2[0]), loyal2, 2, 'A', 1 },
-	//{ sizeof(loyal3)/sizeof(loyal3[0]), loyal3, 6, 'R', 0 }
+	//{ sizeof(loyal0)/sizeof(loyal0[0]), loyal0, 1, 'R', 0 },
+	//{ sizeof(loyal1)/sizeof(loyal1[0]), loyal1, 2, 'R', 0 },
+	//{ sizeof(loyal2)/sizeof(loyal2[0]), loyal2, 2, 'A', 1 },
+	{ sizeof(loyal3)/sizeof(loyal3[0]), loyal3, 6, 'R', 0 }
 };
 
 #define MAX_GENERALS 7

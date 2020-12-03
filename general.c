@@ -11,8 +11,8 @@ osMutexId_t debug_mutex;
 
 // add any #defines here
 #define BUFFER_SIZE0 1 // TODO ADAPT THIS FOR CASE N
-#define BUFFER_SIZE1 2 // TODO ADAPT THIS FOR CASE N
-#define BUFFER_SIZE2 2 // TODO ADAPT THIS FOR CASE N SOMETHING SOMETHING SOMETHING UGGGHHH IM GONNA WATCH THE VIDEO AGAIN
+#define BUFFER_SIZE1 5 // TODO ADAPT THIS FOR CASE N
+#define BUFFER_SIZE2 25 // TODO ADAPT THIS FOR CASE N SOMETHING SOMETHING SOMETHING UGGGHHH IM GONNA WATCH THE VIDEO AGAIN
 #define DEFAULT_PRIORITY 0
 #define FOUR 4
 #define SIX 6
@@ -164,7 +164,7 @@ void om(uint8_t temp_commander, char *path, uint8_t path_length, uint8_t recursi
 			printf("%s ", path);
 		}
 	} 
-	else if(recursion_lvl == 1) {
+	else if(recursion_lvl == 1 || recursion_lvl == 2) {
 		c_assert(path_length == FOUR || path_length == SIX);
 		for(uint8_t i = 0; i < m_nGeneral; i++) {
 			if(!general_in_path(i, path, path_length) && i!= temp_commander) {
@@ -172,8 +172,8 @@ void om(uint8_t temp_commander, char *path, uint8_t path_length, uint8_t recursi
 				msg[0] = '0' + temp_commander;
 				msg[1] = ':';
 				for(uint8_t i = 0; i < path_length; i++){
-					if(i == (path_length-2)) {
-						msg[i+2] = m_loyal[temp_commander] ? path[2] : (temp_commander%2 ? ATTACK : RETREAT);
+					if(i == (path_length-2)) { // if dealing with cmd entry
+						msg[i+2] = m_loyal[temp_commander] ? path[i] : (temp_commander%2 ? ATTACK : RETREAT);
 					} else {
 						msg[i+2] = path[i];
 					}
@@ -181,14 +181,11 @@ void om(uint8_t temp_commander, char *path, uint8_t path_length, uint8_t recursi
 				c_assert(osMessageQueuePut(path_length == FOUR ? m_buffers1[i] : m_buffers2[i], msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
 			}
 		}
-		for(uint8_t i = 0; i < (m_nGeneral-1-recursion_lvl); i++) {
+		for(uint8_t i = 0; i < (m_nGeneral-2); i++) {
 			char input[path_length+2];
 			c_assert(osMessageQueueGet(path_length == FOUR ? m_buffers1[temp_commander] : m_buffers2[temp_commander], input, DEFAULT_PRIORITY, osWaitForever) == osOK);
 			om(temp_commander, input, path_length+2, recursion_lvl-1);
 		}
-	}
-	else if(recursion_lvl == 2) {
-		c_assert(false); // not done this yet
 	}
 	else {
 		c_assert(false); // this should never get here
