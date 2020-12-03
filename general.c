@@ -9,10 +9,12 @@
 osMutexId_t debug_mutex;
 #endif
 
+uint8_t general_msgs_sent[7];
+
 // add any #defines here
 #define BUFFER_SIZE0 1 // TODO ADAPT THIS FOR CASE N
 #define BUFFER_SIZE1 5 // TODO ADAPT THIS FOR CASE N
-#define BUFFER_SIZE2 25 // TODO ADAPT THIS FOR CASE N SOMETHING SOMETHING SOMETHING UGGGHHH IM GONNA WATCH THE VIDEO AGAIN
+#define BUFFER_SIZE2 25 // TODO ADAPT THIS FOR CASE N
 #define DEFAULT_PRIORITY 0
 #define FOUR 4
 #define SIX 6
@@ -24,9 +26,9 @@ uint8_t m_nGeneral = 0; // at most 7
 uint8_t m_nTraitors = 0; // at most 2
 bool *m_loyal = NULL; // heap allocation
 // array of size nGeneneral
-osMessageQueueId_t *m_buffers0 = NULL; // heap allocation
-osMessageQueueId_t *m_buffers1 = NULL; // heap allocation
-osMessageQueueId_t *m_buffers2 = NULL; // heap allocation
+osMessageQueueId_t *m_buffers0 = NULL; // this buffer holds strings of size 4
+osMessageQueueId_t *m_buffers1 = NULL; // this buffer holds strings of size 6
+osMessageQueueId_t *m_buffers2 = NULL; // this buffer holds strings of size 8
 osSemaphoreId_t m_enter, m_exit;
 // add function declarations here
 void om(uint8_t temp_commander, char *path, uint8_t path_length, uint8_t recursion_lvl);
@@ -181,10 +183,12 @@ void om(uint8_t temp_commander, char *path, uint8_t path_length, uint8_t recursi
 				c_assert(osMessageQueuePut(path_length == FOUR ? m_buffers1[i] : m_buffers2[i], msg, DEFAULT_PRIORITY, osWaitForever) == osOK);
 			}
 		}
-		for(uint8_t i = 0; i < (m_nGeneral-2); i++) {
-			char input[path_length+2];
-			c_assert(osMessageQueueGet(path_length == FOUR ? m_buffers1[temp_commander] : m_buffers2[temp_commander], input, DEFAULT_PRIORITY, osWaitForever) == osOK);
-			om(temp_commander, input, path_length+2, recursion_lvl-1);
+		for(uint8_t i = 0; i < m_nGeneral; i++) {
+			if(!general_in_path(i, path, path_length) && i!= temp_commander) {
+				char input[path_length+2];
+				c_assert(osMessageQueueGet(path_length == FOUR ? m_buffers1[temp_commander] : m_buffers2[temp_commander], input, DEFAULT_PRIORITY, osWaitForever) == osOK); 
+				om(temp_commander, input, path_length+2, recursion_lvl-1);
+			}
 		}
 	}
 	else {
