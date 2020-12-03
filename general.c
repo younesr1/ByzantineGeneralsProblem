@@ -4,17 +4,11 @@
 // add any #includes here
 #include "stdlib.h"
 #include "string.h"
-//#define DEBUG
-#ifdef DEBUG
-osMutexId_t debug_mutex;
-#endif
-
-uint8_t general_msgs_sent[7];
 
 // add any #defines here
 #define BUFFER_SIZE0 1 // TODO ADAPT THIS FOR CASE N
 #define BUFFER_SIZE1 5 // TODO ADAPT THIS FOR CASE N
-#define BUFFER_SIZE2 25 // TODO ADAPT THIS FOR CASE N
+#define BUFFER_SIZE2 20 // TODO ADAPT THIS FOR CASE N
 #define DEFAULT_PRIORITY 0
 #define FOUR 4
 #define SIX 6
@@ -74,9 +68,6 @@ bool setup(uint8_t nGeneral, bool loyal[], uint8_t reporter) {
 	m_enter = osSemaphoreNew(nGeneral, 0, NULL);
 	m_exit = osSemaphoreNew(nGeneral-1, 0, NULL);
 	if(!c_assert(m_enter) || !c_assert(m_exit)) return false;
-#ifdef DEBUG
-	debug_mutex = osMutexNew(NULL);
-#endif
 	return true;
 }
 
@@ -103,9 +94,6 @@ void cleanup(void) {
 	m_commander = 0;
 	m_nTraitors = 0;
 	m_nGeneral = 0;
-#ifdef DEBUG
-	c_assert(osMutexDelete(debug_mutex) == osOK);
-#endif
 }
 
 /** This function performs the initial broadcast to n-1 generals.
@@ -150,11 +138,6 @@ void general(void *idPtr) {
 	// read from your buffer:
 	char input[FOUR];
 	c_assert(osMessageQueueGet(m_buffers0[id], input, DEFAULT_PRIORITY,osWaitForever) == osOK);
-#ifdef DEBUG
-	osMutexAcquire(debug_mutex, osWaitForever);
-	printf("%s\n", input.msg);
-	osMutexRelease(debug_mutex);
-#endif
 	// recursive OM
 	om(id, input, FOUR, m_nTraitors);
 	c_assert(osSemaphoreRelease(m_exit) == osOK);
